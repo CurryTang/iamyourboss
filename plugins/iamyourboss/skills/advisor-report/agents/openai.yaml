@@ -1,0 +1,5 @@
+interface:
+  display_name: "Advisor Report"
+  short_description: "Send concise findings to your advisor"
+  brand_color: "#2563EB"
+  default_prompt: "Use $advisor-report to synthesize this result for my advisor."

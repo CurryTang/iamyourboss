@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="iamyourboss is a local advisor dashboard for autonomous coding agents.">
+  <title>iamyourboss — Your coding agents work. You supervise.</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#top"><span>iyb</span> iamyourboss</a>
+    <nav aria-label="Primary navigation">
+      <a href="#how">How it works</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/CurryTang/iamyourboss">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Local advisor layer for coding agents</p>
+        <h1>Your coding agents work.<br>You supervise.</h1>
+        <p class="lede">Run several autonomous coding sessions without watching terminals. Agents surface conclusions, decisions, artifacts, and final results in one quiet advisor desk.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#install">Install locally</a>
+          <a class="button secondary" href="#preview">See the advisor desk</a>
+        </div>
+        <ul class="trust-list" aria-label="Product boundaries">
+          <li>No terminal streaming</li>
+          <li>No chain-of-thought capture</li>
+          <li>No token surveillance</li>
+        </ul>
+      </div>
+
+      <div class="loop-diagram" aria-label="Advisor loop diagram">
+        <div class="loop-step"><span>01</span><strong>Goal</strong><small>Assign work in the coding agent</small></div>
+        <div class="loop-arrow">→</div>
+        <div class="loop-step"><span>02</span><strong>Autonomous work</strong><small>The agent continues independently</small></div>
+        <div class="loop-arrow">→</div>
+        <div class="loop-step accent"><span>03</span><strong>Report or request</strong><small>Conclusions and artifacts arrive here</small></div>
+        <div class="loop-arrow">→</div>
+        <div class="loop-step"><span>04</span><strong>Directive</strong><small>Your feedback resumes the same session</small></div>
+      </div>
+    </section>
+
+    <section class="product-preview" id="preview" aria-labelledby="preview-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">Synthetic product preview</p><h2 id="preview-title">See the result. Skip the activity feed.</h2></div>
+        <p>Every card below uses fictional sessions, hosts, metrics, and artifacts.</p>
+      </div>
+
+      <div class="app-window">
+        <div class="app-bar">
+          <div class="app-brand"><span>iyb</span><strong>iamyourboss</strong></div>
+          <div class="app-live"><i></i> advisor server online <time>14:32</time></div>
+        </div>
+        <div class="app-body">
+          <div class="desk-heading">
+            <div><small>ADVISOR DESK · THURSDAY, OCTOBER 8</small><h3>Your autonomous lab, at a glance.</h3></div>
+            <div class="desk-stats"><span><b>1</b> needs you</span><span><b>3</b> students</span><span><b>2</b> new reports</span></div>
+          </div>
+          <div class="session-grid">
+            <article class="session-card needs-you">
+              <div class="session-top"><span class="agent-icon claude">CL</span><div><small>CLAUDE CODE · MAIN</small><strong>Atlas retrieval study</strong></div><span class="runtime">● RUNNING</span></div>
+              <span class="status request">NEEDS YOU</span>
+              <div class="progress-card"><small>LATEST REQUEST · 8 MIN AGO</small><strong>Choose the cache migration boundary</strong><p>Canonical IDs remove alias collisions. Compatibility requires one adapter layer.</p><em>Recommendation: migrate now</em></div>
+              <div class="card-meta"><span>◇ claude-sonnet</span><span>⌁ 1.8 GB</span></div>
+            </article>
+            <article class="session-card report-ready">
+              <div class="session-top"><span class="agent-icon codex">CX</span><div><small>CODEX · MAIN</small><strong>Redwood compiler</strong></div><span class="runtime">● RUNNING</span></div>
+              <span class="status report">REPORT READY</span>
+              <div class="progress-card"><small>LATEST PROGRESS · 21 MIN AGO</small><strong>Incremental build time reduced by 34%</strong><p>The gain holds across five clean-room runs; peak memory changed by +1.7%.</p><em>Next: validate Windows paths</em></div>
+              <div class="card-meta"><span>◇ gpt-codex</span><span>↗ gpu-lab · 6.2 GB</span></div>
+            </article>
+            <article class="session-card working">
+              <div class="session-top"><span class="agent-icon cursor">CU</span><div><small>CURSOR AGENT · MAIN</small><strong>Nova benchmark</strong></div><span class="runtime">● RUNNING</span></div>
+              <span class="status active">WORKING</span>
+              <div class="progress-card muted-card"><small>CURRENT RECORD</small><strong>Five-seed guardrail evaluation</strong><p>No advisor response is required. The next report will include the final confidence interval.</p></div>
+              <div class="card-meta"><span>◇ auto</span><span>⌁ 940 MB</span></div>
+            </article>
+          </div>
+          <div class="desk-footer"><span>Only selected sessions are supervised.</span><button type="button">＋ Supervise a session</button></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="principles" id="how">
+      <div class="section-heading compact"><div><p class="eyebrow">Designed for advisor attention</p><h2>A research record with four objects.</h2></div></div>
+      <div class="object-grid">
+        <article><span>01</span><h3>Goal</h3><p>The assignment, repository, agent identity, and session status.</p></article>
+        <article><span>02</span><h3>Report</h3><p>A bottom line, selected evidence, interpretation, and next step.</p></article>
+        <article><span>03</span><h3>Directive</h3><p>Free-form advisor feedback delivered to the exact coding session.</p></article>
+        <article><span>04</span><h3>Decision</h3><p>A structured answer when the agent needs consequential human judgment.</p></article>
+      </div>
+    </section>
+
+    <section class="install" id="install">
+      <div>
+        <p class="eyebrow">One local install</p>
+        <h2>Keep using your agents normally.</h2>
+        <p>The installer registers the advisor MCP, lifecycle hooks, and shared reporting skills for detected coding agents. The dashboard stays on localhost.</p>
+      </div>
+      <div class="terminal" aria-label="Installation commands"><div><i></i><i></i><i></i><span>terminal</span></div><pre><code>git clone https://github.com/CurryTang/iamyourboss.git
+cd iamyourboss
+npm install
+npm install -g .
+iyb install
+
+# Dashboard
+open http://127.0.0.1:7331</code></pre></div>
+    </section>
+  </main>
+
+  <footer><strong>iamyourboss</strong><span>Your coding agents work. You supervise.</span><span>MIT licensed · local-first</span></footer>
+</body>
+</html>

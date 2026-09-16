@@ -1,0 +1,19 @@
+{
+  "name": "iamyourboss",
+  "version": "0.4.0",
+  "description": "Shared advisor reporting, experiment artifacts, humanized writing, and scoped resource monitoring for coding agents.",
+  "author": {
+    "name": "Local developer"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "iamyourboss",
+    "shortDescription": "Shared reporting and artifact skills for coding agents.",
+    "longDescription": "Adds opt-in advisor reporting, progress briefs, self-contained experiment tables and figures, Agy-assisted humanization, and session-scoped local or SSH resource monitoring.",
+    "developerName": "Local developer",
+    "category": "Productivity",
+    "capabilities": ["Skills", "MCP"],
+    "defaultPrompt": "Synthesize this result for my iamyourboss advisor."
+  },
+  "mcpServers": "./.mcp.json"
+}

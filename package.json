@@ -1,0 +1,36 @@
+{
+  "name": "iamyourboss",
+  "version": "0.4.0",
+  "description": "An asynchronous advisor layer for autonomous coding agents.",
+  "homepage": "https://github.com/CurryTang/iamyourboss#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CurryTang/iamyourboss.git"
+  },
+  "bugs": {
+    "url": "https://github.com/CurryTang/iamyourboss/issues"
+  },
+  "type": "module",
+  "bin": {
+    "iyb": "./bin/iyb.mjs",
+    "iyb-mcp": "./src/mcp.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "public",
+    "plugins",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "start": "node src/server.mjs",
+    "dev": "IYB_DEV=1 node --watch src/server.mjs",
+    "test": "node --test",
+    "doctor": "node bin/iyb.mjs doctor"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "license": "MIT"
+}

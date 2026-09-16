@@ -1,0 +1,13 @@
+node_modules/
+.DS_Store
+*.log
+.iyb-data/
+.iamyourboss/
+coverage/
+.env
+.env.*
+!.env.example
+research-record.json
+attachments/
+*.db
+*.sqlite

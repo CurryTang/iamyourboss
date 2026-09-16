@@ -1,0 +1,5 @@
+interface:
+  display_name: "Experiment Figure"
+  short_description: "Build self-contained HTML result figures"
+  brand_color: "#D97706"
+  default_prompt: "Use $experiment-figure to create an advisor-ready interactive figure from these results."

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Experiment Table"
+  short_description: "Turn results into compact HTML tables"
+  brand_color: "#059669"
+  default_prompt: "Use $experiment-table to turn these experiment results into an advisor-ready table."
