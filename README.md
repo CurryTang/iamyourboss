@@ -4,6 +4,8 @@
 
 `iamyourboss` is a local advisor layer for autonomous coding sessions. Claude Code, Codex, Agy, and Cursor Agent keep working in their normal environments, but only send you synthesized findings, decisions, and final reports. The browser app is the permanent research record: goals, reports, requests, advisor directives, decisions, attachments, and session-level resource summaries.
 
+[Homepage](https://currytang.github.io/iamyourboss/) · [Installation](#run-it) · [Lab meetings](#lab-meetings)
+
 ![Synthetic iamyourboss advisor desk](docs/images/dashboard-synthetic.png)
 
 The screenshot uses synthetic sessions, metrics, hosts, and artifacts.
@@ -106,6 +108,21 @@ The Dashboard shows `queued`, `sending prompt`, `prompt delivered`, or `prompt f
 For already-running Claude sessions, the detector uses `claude agents --json` to bind the process to Claude's authoritative session ID and provider state (`busy` or `idle`) without reading its transcript. The server samples CPU, RAM, process count, and GPU memory for supervised running process trees every 10 seconds. Clicking **Stop** or **Stop supervising** stops new prompts and sampling while preserving reports, artifact IDs, timestamps, directives, and decisions.
 
 Prompt dispatch never adds a provider's dangerous auto-approval flag. The resumed session keeps its configured permission and sandbox policy.
+
+## Lab meetings
+
+Star the sessions that require close supervision, then select **Start lab meeting** on the advisor desk. The server sends one concise report request to every running core session with an active goal. Each coding agent reaches a sensible stopping point and submits an update, request, or final report in its configured artifact language.
+
+The meeting page shows:
+
+- reports received and still pending;
+- decisions that require advisor input;
+- one report block per selected session;
+- links back to the original session record;
+- a per-session directive form;
+- a print view that can be saved as PDF.
+
+A lab meeting does not expose agent transcripts or connect agents to each other. It groups ordinary directives and reports with a shared meeting identifier, so every response remains part of its original goal and session history. Meeting records survive process restarts with the rest of the local research record.
 
 ## Local and SSH resources
 

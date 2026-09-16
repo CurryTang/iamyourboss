@@ -107,3 +107,25 @@ test('provider identity upgrades a supervised process fallback without splitting
   assert.equal(upgraded.session_key, 'claude-real-id');
   assert.equal(store.getGoal(goal.id).goal.resume_id, 'claude-real-id');
 });
+
+test('lab meetings group core-session directives and collect one report per goal', () => {
+  const { store } = fixture();
+  const first = store.createGoal({ title: 'Retrieval study', originalGoal: 'Evaluate retrieval.', agent: 'Codex', sessionKey: 'meeting-codex', supervised: true });
+  const second = store.createGoal({ title: 'Compiler study', originalGoal: 'Evaluate the compiler.', agent: 'Claude Code', sessionKey: 'meeting-claude', supervised: true });
+  store.setSessionStar(first.session_id, true);
+  store.setSessionStar(second.session_id, true);
+  const meetingId = 'meeting-001';
+  store.addDirective(first.id, { body: 'Report for the lab meeting.', kind: 'LAB_MEETING_REQUEST', meetingId, meetingTitle: 'Weekly review' });
+  store.addDirective(second.id, { body: 'Report for the lab meeting.', kind: 'LAB_MEETING_REQUEST', meetingId, meetingTitle: 'Weekly review' });
+  store.addReport(first.id, { meetingId, type: 'UPDATE', headline: 'Retrieval result', bottomLine: 'Recall increased by 0.04.' });
+  let meeting = store.getLabMeeting(meetingId);
+  assert.equal(meeting.status, 'COLLECTING');
+  assert.equal(meeting.received, 1);
+  assert.equal(meeting.total, 2);
+  store.addReport(second.id, { type: 'REQUEST', headline: 'Compiler decision', bottomLine: 'Two migration paths remain.', blocking: true, choices: ['A', 'B'] });
+  meeting = store.getLabMeeting(meetingId);
+  assert.equal(meeting.status, 'READY');
+  assert.equal(meeting.received, 2);
+  assert.equal(meeting.needs_you, 1);
+  assert.equal(meeting.participants.find((item) => item.goal.id === second.id).report.meeting_id, meetingId);
+});

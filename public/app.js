@@ -77,6 +77,13 @@ function section(title, goals, content, hint = '') {
   return `<section class="section"><div class="section-head"><h2 class="section-title">${esc(title)} <span class="count">${goals.length}</span></h2><span class="section-hint">${esc(hint)}</span></div>${content}</section>`;
 }
 
+function meetingOverview(meeting) {
+  if (!meeting) return '';
+  const percent = meeting.total ? Math.round(meeting.received / meeting.total * 100) : 0;
+  const labels = meeting.participants.map((item) => `<span class="meeting-person ${item.state.toLowerCase()}">${providerCode(item.session?.provider)} · ${esc(item.goal?.title || 'Session')} <b>${item.state === 'REPORTED' ? '✓' : item.state === 'FAILED' ? '!' : '…'}</b></span>`).join('');
+  return `<section class="meeting-overview" data-open-meeting="${meeting.id}"><div class="meeting-overview-copy"><p class="eyebrow">Latest lab meeting · ${ago(meeting.requested_at)} ago</p><h2>${esc(meeting.title)}</h2><p>${meeting.status === 'READY' ? 'All selected students have reported.' : `${meeting.received} of ${meeting.total} reports received.`}${meeting.needs_you ? ` ${meeting.needs_you} decision${meeting.needs_you === 1 ? '' : 's'} need your review.` : ''}</p></div><div class="meeting-progress"><div><span style="width:${percent}%"></span></div><strong>${meeting.received}/${meeting.total}</strong></div><div class="meeting-people">${labels}</div><button class="btn" data-open-meeting="${meeting.id}">Open meeting</button></section>`;
+}
+
 function renderDashboard(data) {
   const total = ['NEEDS_YOU','REPORT_READY','WORKING','STALE','DONE'].reduce((sum, key) => sum + data[key].length, 0);
   const sessions = data.sessions || [];
@@ -94,7 +101,11 @@ function renderDashboard(data) {
   const unlinked = Object.fromEntries(['NEEDS_YOU','REPORT_READY','WORKING','STALE','DONE'].map((key) => [key, data[key].filter((goal) => !goal.session_id || !supervisedIds.has(goal.session_id))]));
   const needYouCount = supervised.filter((session) => session.active_status === 'NEEDS_YOU').length + unlinked.NEEDS_YOU.length;
   const reportCount = supervised.filter((session) => session.active_status === 'REPORT_READY').length + unlinked.REPORT_READY.length;
-  app.innerHTML = `<div class="shell"><section class="hero"><div><p class="eyebrow">Advisor desk · ${new Date().toLocaleDateString([], { weekday:'long', month:'long', day:'numeric' })}</p><h1>Your autonomous lab, at a glance.</h1><p class="hero-note">One card per supervised student. Goal status, reports, and hardware usage stay attached to that session.</p></div><div class="stat-row"><div class="stat attention"><strong>${needYouCount}</strong><span>need you</span></div><div class="stat"><strong>${mainCount}</strong><span>main agents</span></div><div class="stat"><strong>${subCount}</strong><span>subagents</span></div><div class="stat"><strong>${reportCount}</strong><span>new reports</span></div></div></section>
+  const latestMeeting = data.meetings?.[0] || null;
+  const meetingEligible = core.filter((session) => session.running !== false && session.active_goal);
+  const meetingAction = latestMeeting?.status === 'COLLECTING' ? `<button class="btn meeting-button" data-open-meeting="${latestMeeting.id}">Continue lab meeting · ${latestMeeting.received}/${latestMeeting.total}</button>` : `<button class="btn primary meeting-button" data-start-meeting ${meetingEligible.length ? '' : 'disabled'}>Start lab meeting · ${meetingEligible.length} core</button>`;
+  app.innerHTML = `<div class="shell"><section class="hero"><div><p class="eyebrow">Advisor desk · ${new Date().toLocaleDateString([], { weekday:'long', month:'long', day:'numeric' })}</p><h1>Your autonomous lab, at a glance.</h1><p class="hero-note">One card per supervised student. Goal status, reports, and hardware usage stay attached to that session.</p></div><div class="hero-side"><div class="stat-row"><div class="stat attention"><strong>${needYouCount}</strong><span>need you</span></div><div class="stat"><strong>${mainCount}</strong><span>main agents</span></div><div class="stat"><strong>${subCount}</strong><span>subagents</span></div><div class="stat"><strong>${reportCount}</strong><span>new reports</span></div></div>${meetingAction}</div></section>
+    ${meetingOverview(latestMeeting)}
     ${core.length ? `<section class="session-section core-section"><div class="section-head"><h2 class="section-title">Core sessions <span class="count">${core.length}</span></h2><span class="section-hint">starred for close supervision</span></div><div class="session-list">${orderSessions(core).map((session) => sessionCard(session, true)).join('')}</div></section>` : ''}
     ${other.length ? `<section class="session-section"><div class="section-head"><h2 class="section-title">Supervised sessions <span class="count">${other.length}</span></h2><span class="section-hint">${mainCount} main · ${subCount} subagent${subCount === 1 ? '' : 's'}</span></div><div class="session-list">${orderSessions(other).map((session) => sessionCard(session)).join('')}</div></section>` : ''}
     ${section('Unlinked requests', unlinked.NEEDS_YOU, `<div class="card-grid">${unlinked.NEEDS_YOU.map((g) => reportCard(g, true)).join('')}</div>`, 'legacy goals not yet matched to a session')}
@@ -186,6 +197,22 @@ async function renderSession(id) {
   await Promise.all(unread.map((report) => api(`/api/reports/${report.id}/seen`, { method:'POST' })));
 }
 
+async function renderMeeting(id) {
+  const meeting = await api(`/api/lab-meetings/${id}`);
+  const percent = meeting.total ? Math.round(meeting.received / meeting.total * 100) : 0;
+  const participants = [...meeting.participants].sort((a, b) => Number(Boolean(b.report?.blocking && !b.report?.resolved_at)) - Number(Boolean(a.report?.blocking && !a.report?.resolved_at)) || a.state.localeCompare(b.state));
+  app.innerHTML = `<div class="shell notebook meeting-notebook"><a class="back" href="#">← Advisor overview</a><header class="notebook-head meeting-head"><div><p class="eyebrow">Lab meeting · ${new Date(meeting.requested_at).toLocaleString()}</p><h1>${esc(meeting.title)}</h1><p class="goal-copy">A concise update from each selected core session. Each report remains attached to its original student record.</p></div><div class="title-actions"><button class="btn" id="print-meeting">Print / save PDF</button><span class="status-stamp"><span class="state-dot ${meeting.status === 'READY' ? 'running' : 'registered'}"></span>${meeting.status === 'READY' ? 'READY' : `${meeting.received}/${meeting.total} RECEIVED`}</span></div></header><section class="meeting-summary"><div><strong>${meeting.received}</strong><span>reports received</span></div><div><strong>${meeting.total - meeting.received}</strong><span>still working</span></div><div><strong>${meeting.needs_you}</strong><span>decisions needed</span></div><div class="meeting-summary-progress"><span style="width:${percent}%"></span></div></section><section class="meeting-grid">${participants.map((item) => {
+    const provider = item.session?.provider || item.goal?.agent || 'Agent';
+    const dispatch = item.directive.dispatch_status || (item.directive.delivered_at ? 'HOOK_DELIVERED' : 'PENDING');
+    const waiting = dispatch === 'FAILED' ? 'Prompt delivery failed; the provider hook can still deliver it on the next turn.' : dispatch === 'SENT' || dispatch === 'HOOK_DELIVERED' ? 'Prompt delivered. Waiting for the student to report.' : 'The report request is queued for this session.';
+    return `<article class="meeting-student ${item.report?.blocking && !item.report?.resolved_at ? 'needs-you' : ''}"><header><div class="session-provider ${esc(provider.toLowerCase().replaceAll(' ', '-'))}">${providerCode(provider)}</div><div><p>${esc(provider)} · ${esc(item.session?.role === 'SUBAGENT' ? 'SUBAGENT' : 'MAIN')}</p><h2>${esc(item.goal?.title || 'Session')}</h2></div><span class="meeting-state ${item.state.toLowerCase()}">${item.state === 'REPORTED' ? item.report.type : item.state}</span></header>${item.report ? reportSheet(item.report) : `<div class="meeting-waiting"><span class="waiting-pulse"></span><strong>Report pending</strong><p>${esc(waiting)}</p></div>`}<footer><button class="btn small" data-open-session="${item.session?.id || ''}">Open student</button><details><summary>Send directive</summary><form class="form meeting-directive-form" data-goal="${item.goal?.id || ''}"><textarea name="body" placeholder="Feedback for this student…" required></textarea><button class="btn small" type="submit">Send</button></form></details></footer></article>`;
+  }).join('')}</section></div>`;
+  document.querySelector('#print-meeting').addEventListener('click', () => window.print());
+  for (const form of document.querySelectorAll('.meeting-directive-form')) form.addEventListener('submit', async (event) => { event.preventDefault(); const data = new FormData(event.target); await api(`/api/goals/${event.target.dataset.goal}/directives`, { method:'POST', body:{ body: data.get('body') } }); event.target.reset(); toast('Directive sent to student'); });
+  const unread = participants.flatMap((item) => item.report && !item.report.seen_at ? [item.report] : []);
+  await Promise.all(unread.map((report) => api(`/api/reports/${report.id}/seen`, { method:'POST' })));
+}
+
 async function renderGoal(id) {
   const data = await api(`/api/goals/${id}`);
   const { goal, reports, directives, resources, derivedStatus } = data;
@@ -207,11 +234,14 @@ async function route() {
   try {
     const goalMatch = location.hash.match(/^#goal\/([^/]+)$/);
     const sessionMatch = location.hash.match(/^#session\/([^/]+)$/);
-    if (goalMatch) await renderGoal(goalMatch[1]); else if (sessionMatch) await renderSession(sessionMatch[1]); else renderDashboard(await api('/api/dashboard'));
+    const meetingMatch = location.hash.match(/^#meeting\/([^/]+)$/);
+    if (goalMatch) await renderGoal(goalMatch[1]); else if (sessionMatch) await renderSession(sessionMatch[1]); else if (meetingMatch) await renderMeeting(meetingMatch[1]); else renderDashboard(await api('/api/dashboard'));
   } catch (error) { app.innerHTML = `<div class="loading">${esc(error.message)}</div>`; }
 }
 
 document.addEventListener('click', async (event) => {
+  const startMeeting = event.target.closest('[data-start-meeting]'); if (startMeeting && !startMeeting.disabled) { startMeeting.disabled = true; startMeeting.textContent = 'Requesting reports…'; try { const meeting = await api('/api/lab-meetings', { method:'POST', body:{} }); toast(`Lab meeting started for ${meeting.total} core sessions`); location.hash = `meeting/${meeting.id}`; } catch (error) { startMeeting.disabled = false; startMeeting.textContent = 'Start lab meeting'; toast(error.message); } }
+  const openMeeting = event.target.closest('[data-open-meeting]'); if (openMeeting) location.hash = `meeting/${openMeeting.dataset.openMeeting}`;
   const open = event.target.closest('[data-open]'); if (open) location.hash = `goal/${open.dataset.open}`;
   const openSession = event.target.closest('[data-open-session]'); if (openSession && !event.target.closest('[data-star-session]') && !event.target.closest('[data-session-report]') && !event.target.closest('[data-stop-supervising]')) location.hash = `session/${openSession.dataset.openSession}`;
   const star = event.target.closest('[data-star-session]'); if (star) { event.stopPropagation(); await api(`/api/sessions/${star.dataset.starSession}/star`, { method:'POST', body:{ starred: star.dataset.starred !== '1' } }); toast(star.dataset.starred === '1' ? 'Removed from core sessions' : 'Added to core sessions'); route(); }

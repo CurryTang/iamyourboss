@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import { createReadStream, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { randomUUID } from 'node:crypto';
 import { Store } from './store.mjs';
 import { getConfig } from './config.mjs';
 import { PromptDispatcher } from './dispatcher.mjs';
@@ -22,6 +23,13 @@ Write all human-readable artifact content and report fields in ${ARTIFACT_LANGUA
 
 Do not include terminal logs, command output, tool-call history, transcripts, token usage, or a chronological activity dump. Then submit exactly one appropriate iamyourboss report, request, or finish call. If this already-running session predates the iamyourboss MCP connection, use the installed \`iyb submit-report\` fallback with the supplied goal record ID and artifact path instead of writing the result only to the terminal.`; }
 export const REPORT_REQUEST_BODY = reportRequestBody();
+export function labMeetingRequestBody(meetingId, language = 'zh-CN') { return `The advisor has started a lab meeting for the selected core sessions.
+
+Reach a sensible stopping point, then prepare one concise update for this meeting. Lead with the current conclusion. Include the strongest evidence, important uncertainty or blocker, and the next action. Attach one self-contained offline HTML table or figure when it improves comprehension. Do not include terminal logs, command output, tool-call history, transcripts, or token usage.
+
+Write all human-readable artifact content and report fields in ${ARTIFACT_LANGUAGE_NAMES[language] || ARTIFACT_LANGUAGE_NAMES['zh-CN']}. Preserve code identifiers, commands, paths, and proper nouns exactly when translating them.
+
+Submit exactly one appropriate iamyourboss report, request, or finish call with meetingId set to ${meetingId}. If this session predates the iamyourboss MCP connection, use the installed \`iyb submit-report\` fallback; the advisor server will associate the next report with this meeting.`; }
 
 function sendJson(res, status, value) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
@@ -92,11 +100,32 @@ export function createApp(options = {}) {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const path = url.pathname;
     try {
-      if (path === '/api/health') return sendJson(res, 200, { ok: true, version: '0.4.0' });
+      if (path === '/api/health') return sendJson(res, 200, { ok: true, version: '0.5.0' });
       if (path === '/api/stats') return sendJson(res, 200, store.stats());
-      if (path === '/api/dashboard' && req.method === 'GET') return sendJson(res, 200, { ...store.dashboard({ includeArchived: url.searchParams.get('archived') === '1' }), sessions: refreshSessions() });
+      if (path === '/api/dashboard' && req.method === 'GET') return sendJson(res, 200, { ...store.dashboard({ includeArchived: url.searchParams.get('archived') === '1' }), sessions: refreshSessions(), meetings: store.labMeetings() });
       if (path === '/api/sessions' && req.method === 'GET') return sendJson(res, 200, refreshSessions());
       if (path === '/api/models' && req.method === 'GET') return sendJson(res, 200, modelCatalog(url.searchParams.get('provider') || ''));
+      if (path === '/api/lab-meetings' && req.method === 'GET') return sendJson(res, 200, store.labMeetings());
+      if (path === '/api/lab-meetings' && req.method === 'POST') {
+        const input = await body(req);
+        const requestedIds = Array.isArray(input.sessionIds) ? new Set(input.sessionIds.map(String)) : null;
+        const available = refreshSessions().filter((session) => session.supervised && session.starred && session.running !== false && session.active_goal);
+        const selected = requestedIds ? available.filter((session) => requestedIds.has(session.id)) : available;
+        if (!selected.length) throw new Error('No running core sessions with active goals are available for a lab meeting');
+        if (requestedIds && selected.length !== requestedIds.size) throw new Error('Every selected lab-meeting session must be a running supervised core session with an active goal');
+        const meetingId = randomUUID();
+        const meetingTitle = typeof input.title === 'string' && input.title.trim() ? input.title.trim().slice(0, 120) : `Lab meeting · ${new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+        for (const session of selected) {
+          const directive = store.addDirective(session.active_goal.id, { body: labMeetingRequestBody(meetingId, session.artifact_language), kind: 'LAB_MEETING_REQUEST', meetingId, meetingTitle });
+          changed('lab-meeting-request', directive.id); dispatcher.dispatch(session.active_goal.id, directive);
+        }
+        return sendJson(res, 201, store.getLabMeeting(meetingId));
+      }
+      let meetingMatch = path.match(/^\/api\/lab-meetings\/([^/]+)$/);
+      if (meetingMatch && req.method === 'GET') {
+        const meeting = store.getLabMeeting(meetingMatch[1]);
+        return meeting ? sendJson(res, 200, meeting) : sendJson(res, 404, { error: 'Lab meeting not found' });
+      }
       if (path === '/api/events' && req.method === 'GET') {
         res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', connection: 'keep-alive' });
         res.write(': connected\n\n'); streams.add(res); req.on('close', () => streams.delete(res)); return;
@@ -166,7 +195,7 @@ export function createApp(options = {}) {
       }
       sendJson(res, 404, { error: 'Not found' });
     } catch (error) {
-      const status = /not supervised|Supervise the session/i.test(error.message) ? 409 : /required|must be|not found|already answered|too large|Unexpected token/i.test(error.message) ? 400 : 500;
+      const status = /not supervised|Supervise the session/i.test(error.message) ? 409 : /required|must be|not found|already answered|too large|Unexpected token|No running core/i.test(error.message) ? 400 : 500;
       sendJson(res, status, { error: error.message });
     }
   });

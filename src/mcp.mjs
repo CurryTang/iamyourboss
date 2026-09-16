@@ -59,7 +59,7 @@ const tools = [
 
 function reportSchema(requireGoal = false) {
   return { type: 'object', required: ['headline', 'bottomLine', ...(requireGoal ? ['goalId'] : [])], properties: {
-    goalId: { type: 'string' }, headline: { type: 'string' }, bottomLine: { type: 'string' },
+    goalId: { type: 'string' }, meetingId: { type: 'string', description: 'Lab meeting identifier supplied by an advisor meeting request' }, headline: { type: 'string' }, bottomLine: { type: 'string' },
     evidence: { type: 'array', items: { oneOf: [{ type: 'string' }, { type: 'object' }] } },
     interpretation: { type: 'string' }, nextStep: { type: 'string' },
     attachments: { type: 'array', items: { type: 'object', required: ['path'], properties: { path: { type: 'string' }, name: { type: 'string' }, mimeType: { type: 'string' } } } },
@@ -133,7 +133,7 @@ async function handle(message) {
   if (!message || message.jsonrpc !== '2.0' || message.id == null) return;
   try {
     let result;
-    if (message.method === 'initialize') result = { protocolVersion: message.params?.protocolVersion || '2025-06-18', capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'iamyourboss', version: '0.4.0' } };
+    if (message.method === 'initialize') result = { protocolVersion: message.params?.protocolVersion || '2025-06-18', capabilities: { tools: { listChanged: false } }, serverInfo: { name: 'iamyourboss', version: '0.5.0' } };
     else if (message.method === 'tools/list') result = { tools };
     else if (message.method === 'tools/call') result = await callTool(message.params?.name, message.params?.arguments || {});
     else if (message.method === 'ping') result = {};

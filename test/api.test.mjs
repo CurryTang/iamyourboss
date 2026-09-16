@@ -48,3 +48,35 @@ test('HTTP API completes goal, request, decision, directive, and resource flow',
   await call(`/api/goals/${goal.id}/reports`, 'POST', { type: 'FINAL', headline: 'Migration complete', bottomLine: 'Policy B is implemented.' });
   assert.equal((await call('/api/dashboard')).DONE.length, 1);
 });
+
+test('HTTP API starts a lab meeting for selected core sessions and tracks responses', async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'iyb-meeting-api-'));
+  const store = new Store({ dbPath: join(dir, 'record.json'), attachmentsDir: join(dir, 'attachments') });
+  const dispatched = [];
+  const { server } = createApp({ store, dataDir: dir, port: 0, dispatcher: { dispatch(goalId, directive) { dispatched.push({ goalId, directive }); } } });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => { server.close(); store.close(); });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const call = async (path, method = 'GET', body) => {
+    const response = await fetch(`${base}${path}`, { method, headers: { 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+    assert.ok(response.ok, `${method} ${path} returned ${response.status}`); return response.json();
+  };
+  const sessions = [];
+  for (const [provider, key] of [['Codex', 'meeting-api-codex'], ['Claude Code', 'meeting-api-claude']]) {
+    const session = await call('/api/sessions/identify', 'POST', { provider, sessionKey: key, workingDirectory: `/synthetic/${key}` });
+    await call(`/api/sessions/${session.id}/supervise`, 'POST', { supervised: true });
+    await call(`/api/sessions/${session.id}/star`, 'POST', { starred: true });
+    sessions.push(session);
+  }
+  const meeting = await call('/api/lab-meetings', 'POST', { sessionIds: sessions.map((item) => item.id), title: 'Synthetic weekly review' });
+  assert.equal(meeting.total, 2);
+  assert.equal(meeting.received, 0);
+  assert.equal(meeting.status, 'COLLECTING');
+  assert.equal(dispatched.filter((item) => item.directive.kind === 'LAB_MEETING_REQUEST').length, 2);
+  assert.match(dispatched.at(-1).directive.body, new RegExp(meeting.id));
+  for (const participant of meeting.participants) await call(`/api/goals/${participant.goal.id}/reports`, 'POST', { meetingId: meeting.id, type: 'UPDATE', headline: `${participant.goal.title} update`, bottomLine: 'The current checkpoint is stable.' });
+  const completed = await call(`/api/lab-meetings/${meeting.id}`);
+  assert.equal(completed.status, 'READY');
+  assert.equal(completed.received, 2);
+  assert.equal((await call('/api/dashboard')).meetings[0].id, meeting.id);
+});

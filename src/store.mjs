@@ -183,7 +183,9 @@ export class Store {
     if (!REPORT_TYPES.has(type)) throw new Error('type must be UPDATE, REQUEST, or FINAL');
     if (type !== 'REQUEST' && input.blocking) throw new Error('Only REQUEST reports can be blocking');
     const createdAt = now();
-    const report = { id: randomUUID(), goal_id: goalId, type, headline: required(input.headline, 'headline'), bottom_line: required(input.bottomLine, 'bottomLine'), evidence: clone(input.evidence || []), interpretation: input.interpretation || null, next_step: input.nextStep || null, blocking: Boolean(input.blocking), choices: clone(input.choices || []), recommended_choice: input.recommendedChoice || null, created_at: createdAt, seen_at: null, resolved_at: null };
+    const pendingMeeting = [...this.data.directives].reverse().find((item) => item.goal_id === goalId && item.kind === 'LAB_MEETING_REQUEST' && item.meeting_id && !this.data.reports.some((report) => report.goal_id === goalId && report.meeting_id === item.meeting_id));
+    const meetingId = input.meetingId == null ? pendingMeeting?.meeting_id || null : required(input.meetingId, 'meetingId');
+    const report = { id: randomUUID(), goal_id: goalId, meeting_id: meetingId, type, headline: required(input.headline, 'headline'), bottom_line: required(input.bottomLine, 'bottomLine'), evidence: clone(input.evidence || []), interpretation: input.interpretation || null, next_step: input.nextStep || null, blocking: Boolean(input.blocking), choices: clone(input.choices || []), recommended_choice: input.recommendedChoice || null, created_at: createdAt, seen_at: null, resolved_at: null };
     this.data.reports.push(report); goal.last_agent_at = createdAt; if (type === 'FINAL') goal.completed_at = createdAt;
     for (const attachment of input.attachments || []) this.addAttachment(report.id, attachment, false);
     this.persist(); return this.getReport(report.id);
@@ -232,10 +234,10 @@ export class Store {
     return groups;
   }
   markSeen(reportId) { const report = this.data.reports.find((item) => item.id === reportId); if (!report) throw new Error('Report not found'); report.seen_at ||= now(); this.persist(); return this.getReport(reportId); }
-  addDirective(goalId, { body, reportId = null, kind = 'DIRECTIVE' }) {
+  addDirective(goalId, { body, reportId = null, kind = 'DIRECTIVE', meetingId = null, meetingTitle = null }) {
     const goal = this.data.goals.find((item) => item.id === goalId); if (!goal) throw new Error('Goal not found');
     if (!this.data.sessions.find((item) => item.id === goal.session_id)?.supervised) throw new Error('Session is not supervised');
-    const item = { id: randomUUID(), goal_id: goalId, report_id: reportId, kind, body: required(body, 'body'), created_at: now(), delivered_at: null, dispatch_status: 'PENDING', dispatched_at: null, dispatch_error: null };
+    const item = { id: randomUUID(), goal_id: goalId, report_id: reportId, kind, body: required(body, 'body'), meeting_id: meetingId, meeting_title: meetingTitle, created_at: now(), delivered_at: null, dispatch_status: 'PENDING', dispatched_at: null, dispatch_error: null };
     this.data.directives.push(item); this.persist(); return clone(item);
   }
   answerRequest(reportId, { choice, comment }) {
@@ -277,6 +279,36 @@ export class Store {
     }
     return { latest: [...latestByHost.values()].sort((a,b) => a.scope.localeCompare(b.scope) || a.host.localeCompare(b.host)).map(clone), aggregates, history: rows.filter((item) => Date.parse(item.sampled_at) >= cutoff).map(({ id, goal_id, ...item }) => clone(item)) };
   }
+  labMeetings() {
+    const groups = new Map();
+    for (const directive of this.data.directives.filter((item) => item.kind === 'LAB_MEETING_REQUEST' && item.meeting_id)) {
+      if (!groups.has(directive.meeting_id)) groups.set(directive.meeting_id, []);
+      groups.get(directive.meeting_id).push(directive);
+    }
+    return [...groups.entries()].map(([id, directives]) => {
+      const ordered = [...directives].sort((a,b) => a.created_at.localeCompare(b.created_at));
+      const participants = ordered.map((directive) => {
+        const goal = this.data.goals.find((item) => item.id === directive.goal_id);
+        const session = goal ? this.data.sessions.find((item) => item.id === goal.session_id) : null;
+        const report = this.data.reports.filter((item) => item.goal_id === directive.goal_id && item.meeting_id === id).sort((a,b) => a.created_at.localeCompare(b.created_at))[0] || null;
+        const state = report ? 'REPORTED' : directive.dispatch_status === 'FAILED' ? 'FAILED' : 'WAITING';
+        return { session: session ? clone(session) : null, goal: goal ? clone(goal) : null, directive: clone(directive), report: report ? this.getReport(report.id) : null, state };
+      });
+      const reports = participants.flatMap((item) => item.report ? [item.report] : []);
+      return {
+        id,
+        title: ordered[0].meeting_title || 'Lab meeting',
+        requested_at: ordered[0].created_at,
+        completed_at: participants.length && participants.every((item) => item.report) ? reports.map((item) => item.created_at).sort().at(-1) : null,
+        status: participants.length && participants.every((item) => item.report) ? 'READY' : 'COLLECTING',
+        total: participants.length,
+        received: reports.length,
+        needs_you: reports.filter((item) => item.type === 'REQUEST' && item.blocking && !item.resolved_at).length,
+        participants,
+      };
+    }).sort((a,b) => b.requested_at.localeCompare(a.requested_at));
+  }
+  getLabMeeting(id) { return this.labMeetings().find((item) => item.id === id) || null; }
   attachment(id) { return clone(this.data.attachments.find((item) => item.id === id) || null); }
   stats() { const dashboard = this.dashboard(); return { goals: this.data.goals.filter((goal) => !goal.archived_at).length, needsYou: dashboard.NEEDS_YOU.length, unreadReports: this.data.reports.filter((report) => !report.seen_at).length }; }
 }
